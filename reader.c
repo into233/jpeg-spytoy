@@ -15,17 +15,17 @@ uint8_t read_u8(){
     return t_char;
 }
 
-size_t read_u16(){
+uint16_t read_u16(){
     uint8_t t_char[2] = {0};
     t_char[0] = metafile_content[cursor++];
     t_char[1] = metafile_content[cursor++];
-    return (size_t)t_char[0] * 256 + c[1];
+    return (size_t)t_char[0] * 256 + t_char[1];
 }
 
 AppInfo* read_app0()
 {
     size_t len = read_u16();
-    printf("区段长度为：%04x", len);
+    printf("区段长度为：%04zu\n", len);
 
     AppInfo *appinfo;
     appinfo = (AppInfo*)malloc(sizeof(AppInfo));
@@ -105,7 +105,7 @@ DHTInfo* read_dht(){
     dhtinfo->length = 0;
 
     uint16_t len = read_u16();
-    printf("read_dht block length %zu bytes", len);
+    printf("read_dht block length %hu bytes\n", len);
     len -=  2;
     while(len > 0){
         DHTTable *m_dhttable = NULL;
@@ -126,13 +126,15 @@ DHTInfo* read_dht(){
         for(int i = 0;i < 16;++i){
             for(int j = 0;j < height_info[i];++j){
                 uint8_t source_symbol = read_u8();
-                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), source_symbol)
+                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), height_info[i], source_symbol);
                 len -= 1;
             }
         }
         m_dhttable->dhtroot = dhtroot;
-        dhtinfo->DhtTable[(dhtinfo->length)] = m_dhttable;
+        //TODO: what is this??
+        dhtinfo->DhtTable[dhtinfo->length++] = m_dhttable;
     }
+    return dhtinfo;
 }
 
 DQTTable* read_dqt()
@@ -140,7 +142,7 @@ DQTTable* read_dqt()
     size_t len = read_u16();
     int dqt_index = 0;
 
-    printf("区块长度为%ld bytes", len);
+    printf("区块长度为%ld bytes\n", len);
     len -= 2;
 
     DQTTable *dqttable;
@@ -165,20 +167,17 @@ DQTTable* read_dqt()
             len -= 129;
         }else{
             printf("量化表%c的精度为%c，不符合规范\n", id, precision);
+            jpgexit(DQT_PRECISION_ERROR, __FILE__, __LINE__);
         }
         for(int i = 0;i <= 8;++i){
             for(int j = 0;j < 8;++j){
-                printf("%f ", table[i * 8 + j])
+                printf("%f ", table[i * 8 + j]);
             }
             printf("\n");
         }
 
-        dqttable->table_length++;
-        if(dqttable->table_length == 1)
-            dqttable->tables = (float*)malloc(sizeof(float));
-        else
-            dqttable->tables = (float*)realloc(sizeof(float) * dqttable->table_length);
-        dqttable[dqttable->table_length-1] = table;
+        // *dqttable->tables[dqttable->table_length] = (float*)malloc(sizeof(float));
+        *(dqttable->tables[dqttable->table_length++]) = table;
     }
     return dqttable;
 }
@@ -198,13 +197,13 @@ ComponentInfo* read_sof0_component()
 
 SofInfo* read_sof0(){
     size_t len = read_u16();
-    printf("区块长度为%ld bytes", len);
+    printf("区块长度为%ld bytes\n", len);
 
     SofInfo* sof_info = NULL;
     sof_info = (SofInfo*)malloc(sizeof(SofInfo));
 
     if(sof_info == NULL){
-        printf("sof_info malloc error");
+        printf("sof_info malloc error\n");
         return NULL;
     }
     sof_info->precision = read_u8();
@@ -214,12 +213,16 @@ SofInfo* read_sof0(){
     uint8_t number_of_component = read_u8();
 
     for(int i = 0;i <= number_of_component;++i){
+        //id 1 for Y, 2 for Cb, 3 for Cr
         uint8_t component_id = read_u8();
         sof_info->componentInfos[component_id - 1] = read_sof0_component();
     }
     uint8_t max_h_s=0, max_v_s=0;
-
-    for(int i = 0;i < 3;++i){
+    //颜色分量固定为3
+    if(number_of_component != 3){
+        jpgexit(INVALID_PARAMETER_ERR, __FILE__, __LINE__);
+    }
+    for(int i = 0;i < number_of_component - 1;++i){
         if(sof_info->componentInfos[i]->vertical_sampling>max_v_s){
             max_v_s = sof_info->componentInfos[i]->vertical_sampling;
         }
@@ -227,6 +230,10 @@ SofInfo* read_sof0(){
             max_h_s = sof_info->componentInfos[i]->horizontal_sampling;
         }
     }
+    sof_info->max_horizontal_sampling = max_h_s;
+    sof_info->max_vertical_sampling = max_v_s;
+
+    return sof_info;
 }
 // BitStream
 void init_Bitstream()
@@ -234,14 +241,14 @@ void init_Bitstream()
     bitstream = (BitStream*)malloc(sizeof(BitStream));
     bitstream->buf = 0;
     bitstream->count = 0;
-    bitstream->last_dc = {0};
+    // bitstream->last_dc;
 }
 
 uint8_t get_a_bit()
 {
     if(bitstream == NULL){
         init_Bitstream();
-        printf("init_Bitstream()")
+        printf("init_Bitstream()\n");
     }
     if(bitstream->count == 0)
     {
@@ -249,7 +256,7 @@ uint8_t get_a_bit()
         if(bitstream->buf==0XFF){
             uint8_t check = read_u8();
             if(check == 0x00){
-                printf("0x00 not in compose imagedata");
+                printf("0x00 not in compose imagedata\n");
             }
         }
     }
@@ -261,7 +268,7 @@ int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_c
     DHTRoot p = dthtable->dhtroot;
 
     for(int i = 1;i < huffman_len;++i){
-        switch (huffman_code & (1 << (huffman_len - i)) > 0)
+        switch (huffman_code & ((1 << (huffman_len - i)) > 0))
         {
         case 0:
             p = p->leftNode;
@@ -316,26 +323,204 @@ double read_value(uint8_t code_len)
     ret = first == 1 ? ret : -ret;
     return (double)ret;
 }
-double read_dc(size_t id){
-    uint8_t code_len = matchHuffman();
+double read_dc(DHTTable *dhttable, int id){
+    uint8_t code_len = matchHuffman(dhttable);
     if(code_len==0){
         return bitstream->last_dc[id];
     }
     bitstream->last_dc[id] += read_value(code_len);
     return bitstream->last_dc[id];
 }
-int read_ac(){
-    uint8_t code_len = matchHuffman();
+int read_ac(DHTTable *dhttable){
+    uint8_t code_len = matchHuffman(dhttable);
     switch(code_len){
         case 0x00:
             return AllZeros;
         case 0xF0:
             return SixteenZeros;
         default:{
-            bitstream->zeros = (size_t)(x>>4);
-            bitstream->value = read_value(x & 0x0F);
+            bitstream->zeros = (size_t)(code_len>>4);
+            bitstream->value = read_value(code_len & 0x0F);
             return Normal;
         }
     }
 }
 
+TableMapping* read_sos()
+{
+    uint16_t len = read_u16();
+    printf("区块长度为%hu\n", len);
+    
+    TableMapping *tablemapping = (TableMapping*)malloc(sizeof(TableMapping));
+
+    uint8_t component_number = read_u8();
+    if(component_number != 3)
+        jpgexit(INVALID_PARAMETER_ERR, __FILE__, __LINE__);
+
+    for(int i = 0;i < 3;++i){
+        uint8_t component = read_u8();
+        uint8_t id = read_u8();
+        uint8_t dc_id = id >> 4;
+        uint8_t ac_id = id & 0x0F;
+        printf("%hhu颜色分量, 直流哈弗曼表id=%hhu, 交流哈弗曼表id=%hhu\n", component, dc_id, ac_id);
+        tablemapping->ac_ids[component-1] = ac_id;
+        tablemapping->dc_ids[component-1] = dc_id;
+    }
+    uint8_t c = read_u8();
+    jpeg_assert(c == 0x00, "read_sos c");
+    c = read_u8();
+    jpeg_assert(c == 0x3F, "read_sos c");
+    c = read_u8();
+    jpeg_assert(c == 0x00, "read_sos c");
+
+    return tablemapping;
+}
+
+
+MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
+{
+    ComponentInfo *component_info = jpeg_meta_data->sof_info->componentInfos[0];
+    TableMapping *table_mapping = jpeg_meta_data->table_mapping;
+
+    //MCU
+    MCU *mcu = (MCU*)malloc(sizeof(MCU));
+    mcu->blocks = (Block **)malloc(sizeof(Block**) * 3);
+
+    for(int id = 0;id < 3;++id)
+    {
+        uint8_t height = component_info[id].vertical_sampling;
+        uint8_t width = component_info[id].horizontal_sampling;
+        Block *blocks = (Block*)malloc(sizeof(Block) * height * width * 8 * 8);
+        DHTTable *dc_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->dc_ids[id]];
+        DHTTable *ac_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->ac_ids[id]];
+
+        for(int h = 0;h < height;++h)
+        {
+            for(int w = 0;w < width;++w)
+            {
+                *(blocks + (h * width * 8 * 8))= read_dc(dc_table, id);
+                int count = 1;
+                while(count < 64)
+                {
+                    int ac_value = read_ac(ac_table);
+                    switch (ac_value)
+                    {
+                    case SixteenZeros:
+                        for(int slash = 0;slash < 16;++slash){
+                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            count +=1;
+                        }
+                        break;
+                    case AllZeros:
+                        while(count < 64){
+                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            count += 1;
+                        }
+                        break;
+                    case Normal:
+                        for(int zeros = 0;zeros < bits->zeros;++zeros)
+                        {
+                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            count++;                            
+                        }
+                        *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
+                        count+=1;
+                        break;
+                    default:
+                        jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
+                        break;
+                    }
+
+                }
+            }
+
+        }
+        mcu->blocks[id] = blocks;
+    }
+    return mcu;
+}
+
+MCUS* read_mcus(JpegMetaData *jpegdata){
+    SofInfo *sof_info = jpegdata->sof_info;
+    int image_width = sof_info->width;
+    int image_height = sof_info->height;
+
+    int w = (image_width - 1) / (8 * sof_info->max_horizontal_sampling) + 1;
+    int h = (image_height - 1) / (8 * sof_info->max_vertical_sampling) + 1;
+    printf("宽度上有%d个MCU, 高度上有%d个MCU\n", w, h);
+
+    MCUS *mcus = (MCUS*)malloc(sizeof(MCUS*));
+    mcus->mcu = (MCU**)malloc(sizeof(MCU) * w * h);
+    for(int i = 0;i < h;++i){
+        for(int j = 0;j < w;++j){
+            *(mcus->mcu + i * w + j) = read_mcu(bitstream, jpegdata);
+        }
+    }
+    return mcus;
+}
+char* component_name(uint8_t id)
+{
+    switch(id)
+    {
+        case (1):
+            return "Y";
+        case (2):
+            return "Cb";
+        case (3):
+            return "Cr";
+        default:
+            printf("不知晓的颜色分量id:%hhu", id);
+            jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
+    }
+    jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
+    return "";
+}
+
+JpegMetaData* data_reader()
+{
+    JpegMetaData* jpeg_meta_data = (JpegMetaData*)malloc(sizeof(JpegMetaData));
+    MCUS *mcus = NULL;
+
+    while(1){
+        uint8_t c = read_u8();
+        if(c != MARKER_PREFIX)
+        {
+            continue;
+        }
+        if(c > filesize){
+            break;
+        }
+        c = read_u8();
+        switch(c){
+            case SOI_MARKER:
+                printf("---------扫描SOI, 图片起始----------\n");
+                break;
+            case EOI_MARKER:
+                printf("---------扫描SOI, 图片结束----------\n");
+                if(c < filesize - 10)break;//TODO:处理有缩略图的情况 TODO:忽略的话要吧下面的几个函数free一下
+                return jpeg_meta_data;
+            case SOF0_MARKER:
+                printf("--------------扫描SOF--------------\n");
+                break;
+            case SOS_MARKER:
+                printf("--------------扫描SOS--------------\n");
+                break;
+            case APP0_MARKER:
+                printf("--------------扫描 APP0------------\n");
+                jpeg_meta_data->app_info = read_app0();
+                break;
+            case DHT_MARKER:
+                printf("--------------扫描 DHT --------------\n");
+                jpeg_meta_data->dht_info = read_dht();
+                break;
+            case DQT_MARKER:
+                printf("--------------扫描 DQT --------------\n");
+                jpeg_meta_data->dqt_table = read_dqt();
+                break;
+            default:
+                printf("other marker:%hhu", c);
+                break;
+        }
+    }
+    return jpeg_meta_data;
+}
