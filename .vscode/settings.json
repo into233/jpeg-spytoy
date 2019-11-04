@@ -1,0 +1,16 @@
+{
+    "C_Cpp.errorSquiggles": "Disabled",
+    "files.associations": {
+        "istream": "c",
+        "hash_map": "c",
+        "hash_fun.h": "c",
+        "reader.h": "c",
+        "stdint.h": "c",
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "jpegerror.h": "c",
+        "ctype.h": "c",
+        "stddef.h": "c",
+        "float.h": "c"
+    }
+}
