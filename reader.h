@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <float.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 const uint8_t MARKER_PREFIX = 0xFF;
 const uint8_t SOI_MARKER = 0xD8;
@@ -23,7 +25,7 @@ enum AcValue{
     SixteenZeros,
     AllZeros,
     Normal
-}
+};
 
 typedef struct _App_Info
 {
@@ -45,8 +47,8 @@ typedef struct _DHT_Node
     bool is_leaf;
     uint8_t code;
     
-    _DHT_Node *leftNode = NULL;
-    _DHT_Node *rightNode = NULL;
+    struct _DHT_Node *leftNode;
+    struct _DHT_Node *rightNode;
 }DHTNode, *DHTRoot;
 
 typedef struct _DHT_Table
@@ -54,7 +56,7 @@ typedef struct _DHT_Table
     uint8_t id;
     uint8_t ac_dc;
 
-    DHTRoot dhtroot = NULL;
+    DHTRoot dhtroot;
 }DHTTable;
 
 // nomally it has four tables
@@ -62,7 +64,7 @@ typedef struct _DHT_Table
 typedef struct _DHTInfo
 {
     DHTTable *DhtTable[4];
-    int length = 0;
+    int length;
 }DHTInfo;
 
 typedef struct _DQT_table

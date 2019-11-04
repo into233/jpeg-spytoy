@@ -1,6 +1,5 @@
 #include "reader.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include "jpegerror.h"
 extern long filesize;
 extern char *metafile_content;
@@ -54,24 +53,28 @@ int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code){
     DHTNode *p = dhtroot;
     DHTNode *q;
     for(int i = 0;i < height;++i){
-        q = (DHTNode*)malloc(sizeof(DHTNode));
+        if(q == NULL)
+            q = (DHTNode*)malloc(sizeof(DHTNode));
         q->is_leaf = false;
 
-        switch ((m_code << (height - i - 1)) & 0x0001)
+        switch ((code_word >> (height - i - 1)) & 0x01)
         {
         case 0:
             if(p->leftNode == NULL){
                 p->leftNode = q;
-            }else free(q);
+                q = NULL;
+            }
             p = p->leftNode;
             break;
         case 1:
             if(p->rightNode == NULL){
                 p->rightNode = q;
-            }else free(q);
+                q = NULL;
+            }
             p = p->rightNode;
             break;
         default:
+            jpgexit(UNKNOWN_ERROR, __FILE__, __LINE__);
             return -1;
         }
     }
@@ -79,8 +82,8 @@ int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code){
     p->code = code;
     return 0;
 }
+//TODO: get huffman code
 //codeword
-
 uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[])
 {
     uint16_t code_word = 0;
@@ -98,7 +101,7 @@ uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[])
 
 
 DHTInfo* read_dht(){
-    dhtinfo = (DHTINFO*)malloc(sizeof(DHTINFO));
+    dhtinfo = (DHTInfo*)malloc(sizeof(DHTInfo));
     dhtinfo->length = 0;
 
     uint16_t len = read_u16();
@@ -123,7 +126,7 @@ DHTInfo* read_dht(){
         for(int i = 0;i < 16;++i){
             for(int j = 0;j < height_info[i];++j){
                 uint8_t source_symbol = read_u8();
-                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), height_info[i])
+                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), source_symbol)
                 len -= 1;
             }
         }
@@ -238,6 +241,7 @@ uint8_t get_a_bit()
 {
     if(bitstream == NULL){
         init_Bitstream();
+        printf("init_Bitstream()")
     }
     if(bitstream->count == 0)
     {
@@ -249,12 +253,38 @@ uint8_t get_a_bit()
             }
         }
     }
-    uint8_t ret = bitstream->buf & (1 << (7 - bitstream->count)) > 0 ? 1 : 0;
+    uint8_t ret = (bitstream->buf & (1 << (7 - bitstream->count))) > 0 ? 1 : 0;
     bitstream->count = bitstream->count == 7 ? 0 : bitstream->count + 1;
     return ret;
 }
+int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code){
+    DHTRoot p = dthtable->dhtroot;
 
-uint8_t matchHuffman() {
+    for(int i = 1;i < huffman_len;++i){
+        switch (huffman_code & (1 << (huffman_len - i)) > 0)
+        {
+        case 0:
+            p = p->leftNode;
+            break;
+        case 1:
+            p = p->rightNode;
+            break;
+        default:
+            jpgexit(UNKNOWN_ERROR, __FILE__, __LINE__);
+            break;
+        }
+    }
+    if(p->is_leaf){
+        return p->code;
+    }
+
+    return -1;
+}
+
+/**
+ * return the length encoded by the huffmantable.
+*/
+uint8_t matchHuffman(DHTTable *dhttable) {
     uint16_t code = 0;
     uint8_t len = 1;
 
@@ -262,10 +292,10 @@ uint8_t matchHuffman() {
     while(true){
         code = code << 1;
         code += (uint16_t)get_a_bit();
-        //TODO:HuffmanGet
-        ret = HuffmanGet(len, code);
-        if(ret != -1){
-            return ret;
+        //TODO:HuffmanGetLength
+        ret = HuffmanGetLength(dhttable, len, code);
+        if(ret >= 0){
+            return (uint8_t)ret;
         }
         len += 1;
         if(len > 16){
@@ -308,3 +338,4 @@ int read_ac(){
         }
     }
 }
+
