@@ -1,6 +1,7 @@
 #include "decoder.h"
 #include <math.h>
-#include "parse_matafile.h"
+#include "parse_metafile.h"
+#include "reader.h"
 
 float cc(uint8_t i, uint8_t j)
 {
@@ -38,7 +39,7 @@ const int ZZ[8][8] = {
 
 int main()
 {
-    read_matafile("./flower.jpg");
+    read_jpgfile("./person.jpg");
     // marker_detector();
     JpegMetaData *jpegmetadata = data_reader();
 

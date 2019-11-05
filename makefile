@@ -1,19 +1,22 @@
 cc = gcc
-cflag = -g
+cflag = -g -lm -Wall
 
-all: decoder
+all: main
 
-jpegerror.o:
+jpegerror.o:jpegerror.c jpegerror.h
 	$(cc) $(cflag) -c jpegerror.c
 
-reader.o: jpegerror.o
+reader.o: reader.c reader.h jpegerror.o
 	$(cc) $(cflag) -c reader.c
 
-decoder: reader.o jpegerror.o
-	$(cc) $(cflag) -o decoder decoder.c
+parse_metafile.o: parse_metafile.c parse_metafile.h jpegerror.o
+	$(cc) $(cflag) -c parse_metafile.c 
 
-parse_matadafile:
-	$(cc) $(cflag) -o parse_metafile parse_matafile.c 
+decoder.o: decoder.c decoder.h reader.o jpegerror.o
+	$(cc) $(cflag) -c decoder.c
+
+main: decoder.o reader.o jpegerror.o parse_metafile.o
+	$(cc) $(cflag) -o main  parse_metafile.o reader.o decoder.o jpegerror.o
 
 build:
 	mkdir -p build/

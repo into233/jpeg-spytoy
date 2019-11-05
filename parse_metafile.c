@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-// #include "parse_matafile.h"
+#include "parse_metafile.h"
 
 
 long filesize;
@@ -76,7 +76,7 @@ void marker_detector(){
     cursor = t_cursor;
 }
 
-int read_matafile(char *metafile_name)
+int read_jpgfile(char *metafile_name)
 {
     long i;
 
@@ -128,10 +128,3 @@ int read_matafile(char *metafile_name)
 	 return 0;
  }
  
- 
-
-int main(){
-    read_matafile("./flower.jpg");
-    marker_detector();
-
-}

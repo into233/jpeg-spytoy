@@ -1,4 +1,5 @@
 #ifndef READER_H
+#define READER_H
 #include <stdint.h>
 #include <ctype.h>
 #include <float.h>
@@ -128,6 +129,8 @@ typedef struct _MCU
 typedef struct
 {
     MCU **mcu;
+    int w;
+    int h;
 }MCUS;
 
 typedef struct
