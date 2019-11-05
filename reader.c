@@ -7,6 +7,8 @@ extern long cursor;
 AppInfo *appinfo = NULL; 
 BitStream *bitstream = NULL;
 DHTInfo *dhtinfo = NULL;
+SofInfo *sofinfo = NULL;
+TableMapping *tablemapping = NULL;
 
 uint8_t read_u8(){
     uint8_t t_char = '\0';
@@ -177,7 +179,7 @@ DQTTable* read_dqt()
         }
 
         // *dqttable->tables[dqttable->table_length] = (float*)malloc(sizeof(float));
-        *(dqttable->tables[dqttable->table_length++]) = table;
+        (dqttable->tables[dqttable->table_length++]) = table;
     }
     return dqttable;
 }
@@ -284,6 +286,7 @@ int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_c
     if(p->is_leaf){
         return p->code;
     }
+    jpgexit(INVALID_HUFFMAN_CODE_ERROR, __FILE__, __LINE__);
 
     return -1;
 }
@@ -346,36 +349,15 @@ int read_ac(DHTTable *dhttable){
     }
 }
 
-TableMapping* read_sos()
+
+float readBlocks(Block* blocks, int width, int height, int w, int h, int count)
 {
-    uint16_t len = read_u16();
-    printf("区块长度为%hu\n", len);
-    
-    TableMapping *tablemapping = (TableMapping*)malloc(sizeof(TableMapping));
-
-    uint8_t component_number = read_u8();
-    if(component_number != 3)
-        jpgexit(INVALID_PARAMETER_ERR, __FILE__, __LINE__);
-
-    for(int i = 0;i < 3;++i){
-        uint8_t component = read_u8();
-        uint8_t id = read_u8();
-        uint8_t dc_id = id >> 4;
-        uint8_t ac_id = id & 0x0F;
-        printf("%hhu颜色分量, 直流哈弗曼表id=%hhu, 交流哈弗曼表id=%hhu\n", component, dc_id, ac_id);
-        tablemapping->ac_ids[component-1] = ac_id;
-        tablemapping->dc_ids[component-1] = dc_id;
-    }
-    uint8_t c = read_u8();
-    jpeg_assert(c == 0x00, "read_sos c");
-    c = read_u8();
-    jpeg_assert(c == 0x3F, "read_sos c");
-    c = read_u8();
-    jpeg_assert(c == 0x00, "read_sos c");
-
-    return tablemapping;
+    return *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8));
 }
-
+void setBlocks(Block* blocks, int width, int height, int w, int h, int count, Block value)
+{
+    *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = value;
+}
 
 MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
 {
@@ -407,23 +389,27 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
                     {
                     case SixteenZeros:
                         for(int slash = 0;slash < 16;++slash){
-                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            setBlocks(blocks, width, height, w, h, count, 0.0);
                             count +=1;
                         }
                         break;
                     case AllZeros:
                         while(count < 64){
-                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            setBlocks(blocks, width, height, w, h, count, 0.0);
+                            // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
                             count += 1;
                         }
                         break;
                     case Normal:
                         for(int zeros = 0;zeros < bits->zeros;++zeros)
                         {
-                            *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
+                            setBlocks(blocks, width, height, w, h, count, 0.0);
+                            // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
                             count++;                            
                         }
-                        *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
+                            setBlocks(blocks, width, height, w, h, count, bits->value);
+                        // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
                         count+=1;
                         break;
                     default:
@@ -469,13 +455,42 @@ char* component_name(uint8_t id)
         case (3):
             return "Cr";
         default:
-            printf("不知晓的颜色分量id:%hhu", id);
+            printf("Unknown color id:%hhu", id);
             jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
     }
     jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
     return "";
 }
 
+TableMapping* read_sos()
+{
+    uint16_t len = read_u16();
+    printf("区块长度为%hu\n", len);
+    
+    TableMapping *tablemapping = (TableMapping*)malloc(sizeof(TableMapping));
+
+    uint8_t component_number = read_u8();
+    if(component_number != 3)
+        jpgexit(INVALID_PARAMETER_ERR, __FILE__, __LINE__);
+
+    for(int i = 0;i < 3;++i){
+        uint8_t component = read_u8();
+        uint8_t id = read_u8();
+        uint8_t dc_id = id >> 4;
+        uint8_t ac_id = id & 0x0F;
+        printf("%s颜色分量, 直流哈弗曼表id=%hhu, 交流哈弗曼表id=%hhu\n", component_name(component), dc_id, ac_id);
+        tablemapping->ac_ids[component-1] = ac_id;
+        tablemapping->dc_ids[component-1] = dc_id;
+    }
+    uint8_t c = read_u8();
+    jpeg_assert(c == 0x00, "read_sos c");
+    c = read_u8();
+    jpeg_assert(c == 0x3F, "read_sos c");
+    c = read_u8();
+    jpeg_assert(c == 0x00, "read_sos c");
+
+    return tablemapping;
+}
 JpegMetaData* data_reader()
 {
     JpegMetaData* jpeg_meta_data = (JpegMetaData*)malloc(sizeof(JpegMetaData));
@@ -497,13 +512,17 @@ JpegMetaData* data_reader()
                 break;
             case EOI_MARKER:
                 printf("---------扫描SOI, 图片结束----------\n");
-                if(c < filesize - 10)break;//TODO:处理有缩略图的情况 TODO:忽略的话要吧下面的几个函数free一下
+                if(c < filesize - 10)break;//TODO:处理有缩略图的情况, 忽略的话要吧下面的几个函数free一下
                 return jpeg_meta_data;
             case SOF0_MARKER:
+                //TODO: free 缩略图
+                sofinfo = read_sof0();
                 printf("--------------扫描SOF--------------\n");
                 break;
             case SOS_MARKER:
                 printf("--------------扫描SOS--------------\n");
+                //TODO: free 缩略图
+                tablemapping = read_sos();
                 break;
             case APP0_MARKER:
                 printf("--------------扫描 APP0------------\n");

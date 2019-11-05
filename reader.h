@@ -5,21 +5,21 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-const uint8_t MARKER_PREFIX = 0xFF;
-const uint8_t SOI_MARKER = 0xD8;
-const uint8_t EOI_MARKER = 0xD9;
+#define MARKER_PREFIX 0xFF
+#define SOI_MARKER 0xD8
+#define EOI_MARKER 0xD9
 
-const uint8_t APP0_MARKER = 0xE0;
+#define APP0_MARKER 0xE0
 
-const uint8_t DQT_MARKER = 0xDB;
-const uint8_t DHT_MARKER = 0xC4;
+#define DQT_MARKER 0xDB
+#define DHT_MARKER 0xC4
 
 
-const uint8_t SOF0_MARKER = 0xC0;
-const uint8_t SOS_MARKER = 0xDA; 
+#define SOF0_MARKER 0xC0
+#define SOS_MARKER 0xDA 
 
-const uint8_t DC = 0x00;
-const uint8_t AC = 0x01;
+#define DC 0x00
+#define AC 0x01
 
 enum AcValue{
     SixteenZeros,
@@ -69,7 +69,7 @@ typedef struct _DHTInfo
 
 typedef struct _DQT_table
 {
-    float **tables[64];
+    float *tables[4];
     int *ids;
     size_t table_length;
 }DQTTable;
@@ -139,6 +139,31 @@ typedef struct
     DHTInfo* dht_info;
     MCUS* mcus;
 }JpegMetaData;
+
+
+JpegMetaData* data_reader();
+TableMapping* read_sos();
+char* component_name(uint8_t id);
+MCUS* read_mcus(JpegMetaData *jpegdata);
+MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data);
+void setBlocks(Block* blocks, int width, int height, int w, int h, int count, Block value);
+float readBlocks(Block* blocks, int width, int height, int w, int h, int count);
+int read_ac(DHTTable *dhttable);
+double read_dc(DHTTable *dhttable, int id);
+double read_value(uint8_t code_len);
+uint8_t matchHuffman(DHTTable *dhttable);
+int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code);
+uint8_t get_a_bit();
+void init_Bitstream();
+SofInfo* read_sof0();
+ComponentInfo* read_sof0_component();
+DQTTable* read_dqt();
+DHTInfo* read_dht();
+uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[]);
+int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code);
+AppInfo* read_app0();
+uint16_t read_u16();
+uint8_t read_u8();
 
 
 #endif
