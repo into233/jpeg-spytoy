@@ -46,7 +46,10 @@ typedef struct _App_Info
 typedef struct _DHT_Node
 {
     bool is_leaf;
-    uint8_t code;
+    uint8_t source_symbol;
+    int code;
+    int h;
+
     
     struct _DHT_Node *leftNode;
     struct _DHT_Node *rightNode;
@@ -155,7 +158,7 @@ int read_ac(DHTTable *dhttable);
 double read_dc(DHTTable *dhttable, int id);
 double read_value(uint8_t code_len);
 uint8_t matchHuffman(DHTTable *dhttable);
-int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code);
+uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code);
 uint8_t get_a_bit();
 void init_Bitstream();
 SofInfo* read_sof0();
@@ -163,7 +166,7 @@ ComponentInfo* read_sof0_component();
 DQTTable* read_dqt();
 DHTInfo* read_dht();
 uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[]);
-int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code);
+int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t source_symbol, int code);
 AppInfo* read_app0();
 uint16_t read_u16();
 uint8_t read_u8();

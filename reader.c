@@ -51,17 +51,19 @@ AppInfo* read_app0()
     return appinfo;
 }
 
-int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code){
+int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t source_symbol, int code){
     DHTNode *p = dhtroot;
     DHTNode *q = NULL;
     for(int i = 0;i < height;++i){
-        if(q == NULL)
+        if(q == NULL){
             q = (DHTNode*)malloc(sizeof(DHTNode));
-        q->is_leaf = false;
-        q->code = 0;
-        q->leftNode = NULL;
-        q->rightNode = NULL;
-
+            q->is_leaf = false;
+            q->source_symbol = 0;
+            q->leftNode = NULL;
+            q->rightNode = NULL;
+            q->h = 0;
+            q->code = 0;
+        }
 
         switch ((code_word >> (height - i - 1)) & 0x01)
         {
@@ -85,11 +87,13 @@ int add_dht_node(DHTRoot dhtroot, uint16_t code_word, int height, uint8_t code){
         }
     }
     p->is_leaf = true;
+    p->source_symbol = source_symbol;
     p->code = code;
+    p->h = height;
     return 0;
 }
-//TODO: get huffman code
 //codeword
+//这里的len实际的长度为len+1
 uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[])
 {
     uint16_t code_word = 0;
@@ -97,9 +101,12 @@ uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[])
     {
         for(int mj = 0;mj < height_info[mi];++mj)
         {
+            if(mi == len && i == mj){
+                return code_word;
+            }
             code_word += 1;
         }
-        code_word += 1;
+        
         code_word <<= 1;
     }
     return code_word;
@@ -137,17 +144,22 @@ DHTInfo* read_dht(){
         dhtroot = (DHTNode*)malloc(sizeof(DHTNode));
         dhtroot->leftNode = NULL;
         dhtroot->rightNode = NULL;
+        dhtroot->is_leaf = false;
+        dhtroot->h = 0;
+        dhtroot->source_symbol = 0;
+        dhtroot->code = 0;
 
-
+        int code = 0;
         for(int i = 0;i < 16;++i){
             for(int j = 0;j < height_info[i];++j){
                 uint8_t source_symbol = read_u8();
-                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), height_info[i], source_symbol);
+                add_dht_node(dhtroot, get_huffman_codeword(i, j, height_info), i + 1, source_symbol, code);
                 len -= 1;
+                code += 1;
             }
+            code <<= 1;
         }
         m_dhttable->dhtroot = dhtroot;
-        //TODO: what is this??
         dhtinfo->DhtTable[dhtinfo->length++] = m_dhttable;
     }
     return dhtinfo;
@@ -264,7 +276,7 @@ uint8_t get_a_bit()
 {
     if(bitstream->count == 0)
     {
-        bitstream->count = read_u8();
+        bitstream->buf = read_u8();
         if(bitstream->buf==0XFF){
             uint8_t check = read_u8();
             if(check == 0x00){
@@ -276,10 +288,10 @@ uint8_t get_a_bit()
     bitstream->count = bitstream->count == 7 ? 0 : bitstream->count + 1;
     return ret;
 }
-int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code){
+uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code){
     DHTRoot p = dthtable->dhtroot;
 
-    for(int i = 1;i < huffman_len;++i){
+    for(int i = 1;i <= huffman_len;++i){
         switch (huffman_code & ((1 << (huffman_len - i)) > 0))
         {
         case 0:
@@ -293,16 +305,16 @@ int HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_c
             break;
         }
     }
-    if(p->is_leaf){
-        return p->code;
+    //TODO:都返回了
+    if(p != NULL && p->is_leaf == 1){
+        return p->source_symbol;
     }
-    jpgexit(INVALID_HUFFMAN_CODE_ERROR, __FILE__, __LINE__);
-
-    return -1;
+    return 0;
 }
 
 /**
  * return the length encoded by the huffmantable.
+ * (h + 1), code, symbol code
 */
 uint8_t matchHuffman(DHTTable *dhttable) {
     uint16_t code = 0;
@@ -314,7 +326,7 @@ uint8_t matchHuffman(DHTTable *dhttable) {
         code += (uint16_t)get_a_bit();
         //TODO:HuffmanGetLength
         ret = HuffmanGetLength(dhttable, len, code);
-        if(ret >= 0){
+        if(ret > 0){
             return (uint8_t)ret;
         }
         len += 1;
@@ -325,12 +337,13 @@ uint8_t matchHuffman(DHTTable *dhttable) {
 }
 double read_value(uint8_t code_len)
 {
-    int16_t ret = 1;
+    double ret = 1;
     uint8_t first = get_a_bit();
 
     for(size_t i = 1;i < code_len;++i){
         uint8_t b = get_a_bit();
-        ret = ret<<1;
+        ret = ret * 2;
+        //2019年11月06日01:14:54 TODO!!!
         ret += first == b ? 1 : 0;
     }
     ret = first == 1 ? ret : -ret;
