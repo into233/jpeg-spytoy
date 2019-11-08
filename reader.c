@@ -34,6 +34,11 @@ AppInfo* read_app0()
     if(appinfo == NULL){
         return NULL;
     }
+    //read identifier
+    read_u8();
+    read_u16();
+    read_u16();
+
     appinfo->version_major_id = read_u8();
     appinfo->version_minor_id = read_u8();
 
@@ -105,6 +110,9 @@ uint16_t get_huffman_codeword(int len, int i, uint8_t height_info[])
                 return code_word;
             }
             code_word += 1;
+            if(mi == len && i == mj + 1){
+                return code_word;
+            }
         }
         
         code_word <<= 1;
@@ -121,7 +129,6 @@ DHTInfo* read_dht(){
             dhtinfo->DhtTable[i] = NULL;
         }
     }
-
 
     uint16_t len = read_u16();
     printf("read_dht block length %hu bytes\n", len);
@@ -168,7 +175,6 @@ DHTInfo* read_dht(){
 DQTTable* read_dqt()
 {
     size_t len = read_u16();
-    int dqt_index = 0;
 
     printf("区块长度为%ld bytes\n", len);
     len -= 2;
@@ -279,7 +285,7 @@ uint8_t get_a_bit()
         bitstream->buf = read_u8();
         if(bitstream->buf==0XFF){
             uint8_t check = read_u8();
-            if(check == 0x00){
+            if(check != 0x00){
                 printf("0x00 not in compose imagedata\n");
             }
         }
@@ -291,8 +297,8 @@ uint8_t get_a_bit()
 uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffman_code){
     DHTRoot p = dthtable->dhtroot;
 
-    for(int i = 1;i <= huffman_len;++i){
-        switch (huffman_code & ((1 << (huffman_len - i)) > 0))
+    for(size_t i = 1;i <= huffman_len;++i){
+        switch ((huffman_code & (uint16_t)(1 << (huffman_len - i))) > 0 ? 1 : 0)
         {
         case 0:
             p = p->leftNode;
@@ -304,12 +310,15 @@ uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffm
             jpgexit(UNKNOWN_ERROR, __FILE__, __LINE__);
             break;
         }
+        // if(p == NULL){
+        //     return 0;
+        // }
     }
     //TODO:都返回了
-    if(p != NULL && p->is_leaf == 1){
+    if(p->is_leaf == 1){
         return p->source_symbol;
     }
-    return 0;
+    return 0xff;
 }
 
 /**
@@ -326,7 +335,7 @@ uint8_t matchHuffman(DHTTable *dhttable) {
         code += (uint16_t)get_a_bit();
         //TODO:HuffmanGetLength
         ret = HuffmanGetLength(dhttable, len, code);
-        if(ret > 0){
+        if(ret != 0xff){
             return (uint8_t)ret;
         }
         len += 1;
@@ -344,7 +353,7 @@ double read_value(uint8_t code_len)
         uint8_t b = get_a_bit();
         ret = ret * 2;
         //2019年11月06日01:14:54 TODO!!!
-        ret += first == b ? 1 : 0;
+        ret += ((first == b) ? 1 : 0);
     }
     ret = first == 1 ? ret : -ret;
     return (double)ret;
@@ -380,7 +389,21 @@ float readBlocks(Block* blocks, int width, int height, int w, int h, int count)
 void setBlocks(Block* blocks, int width, int height, int w, int h, int count, Block value)
 {
     *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = value;
+    printf("%d ", (int)value);
+    if(count % 8 == 7){
+        printf("\n");
+    }
 }
+
+DHTTable* get_dhttable(DHTInfo* dhtinfo, uint8_t AC_DC,int id){
+    for(int i = 0;i < 4;++i){
+        if(dhtinfo->DhtTable[i]->ac_dc == AC_DC && dhtinfo->DhtTable[i]->id == id){
+            return dhtinfo->DhtTable[i];
+        }
+    }
+    return NULL;
+}
+
 
 MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
 {
@@ -396,14 +419,18 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
         uint8_t height = jpeg_meta_data->sof_info->componentInfos[id]->vertical_sampling;
         uint8_t width = jpeg_meta_data->sof_info->componentInfos[id]->horizontal_sampling;
         Block *blocks = (Block*)malloc(sizeof(Block) * height * width * 8 * 8);
-        DHTTable *dc_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->dc_ids[id]];
-        DHTTable *ac_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->ac_ids[id]];
+        DHTTable *dc_table = get_dhttable(jpeg_meta_data->dht_info, DC, table_mapping->dc_ids[id]);
+        // DHTTable *ac_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->ac_ids[id]];
+        DHTTable *ac_table = get_dhttable(jpeg_meta_data->dht_info, AC, table_mapping->ac_ids[id]);
+
 
         for(int h = 0;h < height;++h)
         {
             for(int w = 0;w < width;++w)
             {
-                *(blocks + (h * width * 8 * 8))= read_dc(dc_table, id);
+                double dc_value = read_dc(dc_table, id);
+                *(blocks + (h * width * 8 * 8)) = dc_value;
+                printf("\n%f ", dc_value);
                 int count = 1;
                 while(count < 64)
                 {
@@ -433,13 +460,12 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
                         }
                             setBlocks(blocks, width, height, w, h, count, bits->value);
                         // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
-                        count+=1;
+                        count += 1;
                         break;
                     default:
                         jpgexit(INVALID_SWITCH_ERROR, __FILE__, __LINE__);
                         break;
                     }
-
                 }
             }
 
@@ -504,7 +530,9 @@ TableMapping* read_sos()
         jpgexit(INVALID_PARAMETER_ERR, __FILE__, __LINE__);
 
     for(int i = 0;i < 3;++i){
+        //1表示Y, 2表示Cb, 3表示Cr
         uint8_t component = read_u8();
+        // id高四位代表直流(DC)哈弗曼表, 第四位代表交流(AC)哈弗曼表
         uint8_t id = read_u8();
         uint8_t dc_id = id >> 4;
         uint8_t ac_id = id & 0x0F;

@@ -39,7 +39,7 @@ const int ZZ[8][8] = {
 
 int main()
 {
-    read_jpgfile("./person.jpg");
+    read_jpgfile("./kaola.jpg");
     // marker_detector();
     JpegMetaData *jpegmetadata = data_reader();
 
