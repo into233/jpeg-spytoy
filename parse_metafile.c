@@ -6,9 +6,9 @@
 #include "parse_metafile.h"
 
 
-long filesize;
+size_t filesize;
 unsigned char *metafile_content = NULL;
-long cursor = 0;
+size_t cursor = 0;
 
 char* marker_info(unsigned char marker){
     char* info;

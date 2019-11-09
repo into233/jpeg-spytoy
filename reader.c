@@ -310,11 +310,7 @@ uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffm
             jpgexit(UNKNOWN_ERROR, __FILE__, __LINE__);
             break;
         }
-        // if(p == NULL){
-        //     return 0;
-        // }
     }
-    //TODO:都返回了
     if(p->is_leaf == 1){
         return p->source_symbol;
     }
@@ -333,7 +329,6 @@ uint8_t matchHuffman(DHTTable *dhttable) {
     while(true){
         code = code << 1;
         code += (uint16_t)get_a_bit();
-        //TODO:HuffmanGetLength
         ret = HuffmanGetLength(dhttable, len, code);
         if(ret != 0xff){
             return (uint8_t)ret;
@@ -376,6 +371,7 @@ int read_ac(DHTTable *dhttable){
         default:{
             bitstream->zeros = (size_t)(code_len>>4);
             bitstream->value = read_value(code_len & 0x0F);
+            //TODO!!!HERE retreat_write_value(code_len & 0x0F)
             return Normal;
         }
     }
@@ -430,7 +426,7 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
             {
                 double dc_value = read_dc(dc_table, id);
                 *(blocks + (h * width * 8 * 8)) = dc_value;
-                printf("\n%f ", dc_value);
+                printf("\n%d ", (int)dc_value);
                 int count = 1;
                 while(count < 64)
                 {
@@ -584,6 +580,7 @@ JpegMetaData* data_reader()
                 //TODO: free 缩略图
                 tablemapping = read_sos();
                 jpeg_meta_data->table_mapping = tablemapping;
+                jpeg_meta_data->MCUS_CURSOR = cursor;
                 mcus = read_mcus(jpeg_meta_data);
                 printf("--------------扫描SOS结束 %08x--------------\n", cursor);
                 break;

@@ -117,6 +117,11 @@ typedef struct _Bit_Stream{
     //AcValue
     size_t zeros;
     double value;
+
+    //spycode
+    char* spychars;
+    uint8_t char_count;
+    uint8_t current_char_index;
 }BitStream;
 
 
@@ -144,6 +149,7 @@ typedef struct
     TableMapping* table_mapping;
     DHTInfo* dht_info;
     MCUS* mcus;
+    size_t MCUS_CURSOR;
 }JpegMetaData;
 
 

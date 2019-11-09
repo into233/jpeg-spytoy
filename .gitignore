@@ -3,3 +3,5 @@ build/
 test*
 *.o
 main
+*.ppm
+*.jpg
