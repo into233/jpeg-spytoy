@@ -119,7 +119,12 @@ typedef struct _Bit_Stream{
     double value;
 
     //spycode
+    uint8_t spy_buf;
     char* spychars;
+    size_t strlen;
+    //这个bit在需要加密的char的位置
+    uint8_t bit_count;
+    //这个bit在密文char的位置
     uint8_t char_count;
     uint8_t current_char_index;
 }BitStream;

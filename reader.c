@@ -1,9 +1,13 @@
 #include "reader.h"
 #include <stdio.h>
 #include "jpegerror.h"
+#include "spywriter.h"
+
 extern long filesize;
-extern char *metafile_content;
+extern unsigned char *metafile_content;
 extern long cursor;
+extern enum SPYMODE spymode; 
+
 AppInfo *appinfo = NULL; 
 BitStream *bitstream = NULL;
 DHTInfo *dhtinfo = NULL;
@@ -372,6 +376,16 @@ int read_ac(DHTTable *dhttable){
             bitstream->zeros = (size_t)(code_len>>4);
             bitstream->value = read_value(code_len & 0x0F);
             //TODO!!!HERE retreat_write_value(code_len & 0x0F)
+            switch (spymode)
+            {
+            case SPY_STILL:
+                break;
+            case SPY_ENCODE:
+                retreat_write_value(code_len);
+                break;
+            default:
+                break;
+            }
             return Normal;
         }
     }
