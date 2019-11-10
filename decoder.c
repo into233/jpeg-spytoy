@@ -10,7 +10,7 @@ int main()
     // marker_detector();
     // JpegMetaData *jpegmetadata = data_reader();
     // printf("please enter the code that you want to encrypt")
-    encrypt("123456", "out.jpg");
+    encrypt("123456", "kaola_out.jpg");
     
     return 0;
 }

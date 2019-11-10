@@ -3,11 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
 #include "parse_metafile.h"
 
 
 size_t filesize;
-unsigned char *metafile_content = NULL;
+uint8_t *metafile_content = NULL;
 size_t cursor = 0;
 
 char* marker_info(unsigned char marker){

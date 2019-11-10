@@ -127,6 +127,9 @@ typedef struct _Bit_Stream{
     //这个bit在密文char的位置
     uint8_t char_count;
     uint8_t current_char_index;
+
+    //TODO:tmp
+    long current_curosr;
 }BitStream;
 
 

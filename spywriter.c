@@ -1,12 +1,13 @@
 #include "spywriter.h"
 #include <fcntl.h>
+#include <string.h>
 
-extern size_t filesize;
-extern unsigned char *metafile_content;
-extern size_t cursor;
+extern long filesize;
+extern uint8_t *metafile_content;
+extern long cursor;
 extern BitStream *bitstream;
 
-size_t spy_cursor;
+long spy_cursor;
 enum SPYMODE spymode = SPY_STILL;
 
 void bit_ctrl_0(uint8_t* pflag, int bit)
@@ -20,11 +21,11 @@ void bit_ctrl_1(uint8_t* pflag, int bit)
 
 //这里是从高位到低位写入字符.
 void write_bit(){
-    if((bitstream->spychars[bitstream->current_char_index] & (1 << (7 - bitstream->char_count--))) > 0)
+    if(((uint8_t)(bitstream->spychars[bitstream->current_char_index]) & (1 << (bitstream->char_count--))) > 0)
     {
-        bit_ctrl_1(metafile_content + spy_cursor, bitstream->bit_count);
+        bit_ctrl_1(metafile_content + spy_cursor,7 - bitstream->bit_count);
     }else{
-        bit_ctrl_0(metafile_content + spy_cursor, bitstream->bit_count);
+        bit_ctrl_0(metafile_content + spy_cursor,7 - bitstream->bit_count);
     }
     
     if(bitstream->char_count == 0){
@@ -42,18 +43,18 @@ void write_bit(){
 // 倒退1bit 直接根据bitstream中的count来计算该写入那个字符的那个位
 void retreat_write_value(uint8_t code_len)
 {
-    if(bitstream->current_char_index > bitstream->strlen){
+    if(bitstream->current_char_index >= bitstream->strlen){
         return;
     }
     bitstream->bit_count = bitstream->count == 0 ? 7 : bitstream->count - 1;
-    spy_cursor = bitstream->count == 0 ? cursor - 1 : cursor;
+    spy_cursor = cursor - 1;
     write_bit();
 }
 
 void encrypt(char *encryptStr, char* filename)
 {
     spymode = SPY_ENCODE; 
-    int len = sizeof(encryptStr);
+    int len = strlen(encryptStr);
 
     if(len > pow(2, 64)){
         jpgexit(STR_OUT_OF_LENGTH, __FILE__, __LINE__);
@@ -67,5 +68,5 @@ void encrypt(char *encryptStr, char* filename)
 
     int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 06666);
     write(fd, metafile_content, filesize);
-    printf("done!");
+    printf("done!\n");
 }

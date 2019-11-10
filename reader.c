@@ -4,7 +4,7 @@
 #include "spywriter.h"
 
 extern long filesize;
-extern unsigned char *metafile_content;
+extern uint8_t *metafile_content;
 extern long cursor;
 extern enum SPYMODE spymode; 
 
@@ -171,6 +171,13 @@ DHTInfo* read_dht(){
             code <<= 1;
         }
         m_dhttable->dhtroot = dhtroot;
+        if(dhtinfo->length == 4){
+            free(dhtinfo->DhtTable[0]);
+            free(dhtinfo->DhtTable[1]);
+            free(dhtinfo->DhtTable[2]);
+            free(dhtinfo->DhtTable[3]);
+            dhtinfo->length = 0;
+        }
         dhtinfo->DhtTable[dhtinfo->length++] = m_dhttable;
     }
     return dhtinfo;
@@ -315,6 +322,7 @@ uint8_t HuffmanGetLength(DHTTable *dthtable, uint8_t huffman_len, uint16_t huffm
             break;
         }
     }
+    //TODO: 图片有缩略图的时候会出现问题
     if(p->is_leaf == 1){
         return p->source_symbol;
     }
@@ -351,7 +359,6 @@ double read_value(uint8_t code_len)
     for(size_t i = 1;i < code_len;++i){
         uint8_t b = get_a_bit();
         ret = ret * 2;
-        //2019年11月06日01:14:54 TODO!!!
         ret += ((first == b) ? 1 : 0);
     }
     ret = first == 1 ? ret : -ret;
@@ -381,7 +388,10 @@ int read_ac(DHTTable *dhttable){
             case SPY_STILL:
                 break;
             case SPY_ENCODE:
-                retreat_write_value(code_len);
+                if(bitstream->value == 0 || abs((int)bitstream->value) == 1){
+                    break;
+                }
+                retreat_write_value(code_len & 0x0F);
                 break;
             default:
                 break;
@@ -399,10 +409,10 @@ float readBlocks(Block* blocks, int width, int height, int w, int h, int count)
 void setBlocks(Block* blocks, int width, int height, int w, int h, int count, Block value)
 {
     *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = value;
-    printf("%d ", (int)value);
-    if(count % 8 == 7){
-        printf("\n");
-    }
+    // printf("%d ", (int)value);
+    // if(count % 8 == 7){
+    //     printf("\n");
+    // }
 }
 
 DHTTable* get_dhttable(DHTInfo* dhtinfo, uint8_t AC_DC,int id){
@@ -440,7 +450,7 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
             {
                 double dc_value = read_dc(dc_table, id);
                 *(blocks + (h * width * 8 * 8)) = dc_value;
-                printf("\n%d ", (int)dc_value);
+                // printf("\n%.0f ", dc_value);
                 int count = 1;
                 while(count < 64)
                 {
@@ -466,7 +476,7 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
                         {
                             setBlocks(blocks, width, height, w, h, count, 0.0);
                             // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
-                            count++;                            
+                            count++;
                         }
                             setBlocks(blocks, width, height, w, h, count, bits->value);
                         // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
