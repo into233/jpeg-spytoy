@@ -9,6 +9,7 @@ extern BitStream *bitstream;
 
 long spy_cursor;
 enum SPYMODE spymode = SPY_STILL;
+int length_index = 15;
 
 void bit_ctrl_0(uint8_t* pflag, int bit)
 {
@@ -21,14 +22,24 @@ void bit_ctrl_1(uint8_t* pflag, int bit)
 
 //这里是从高位到低位写入字符.
 void write_bit(){
-    if(((uint8_t)(bitstream->spychars[bitstream->current_char_index]) & (1 << (bitstream->char_count--))) > 0)
+    if(length_index >= 0){
+        if((bitstream->strlen & (1 << (length_index--))) > 0)
+        {
+            bit_ctrl_1(metafile_content + spy_cursor,7 - bitstream->bit_count);
+        }else{
+            bit_ctrl_0(metafile_content + spy_cursor,7 - bitstream->bit_count);
+        }
+        return;
+    }
+
+    if(((bitstream->spychars[bitstream->current_char_index]) & (1 << (bitstream->char_count--))) > 0)
     {
         bit_ctrl_1(metafile_content + spy_cursor,7 - bitstream->bit_count);
     }else{
         bit_ctrl_0(metafile_content + spy_cursor,7 - bitstream->bit_count);
     }
     
-    if(bitstream->char_count == 0){
+    if(bitstream->char_count < 0){
         bitstream->current_char_index = bitstream->current_char_index + 1;
         bitstream->char_count = 7;
     }
@@ -54,7 +65,7 @@ void retreat_write_value(uint8_t code_len)
 void encrypt(char *encryptStr, char* filename)
 {
     spymode = SPY_ENCODE; 
-    int len = strlen(encryptStr);
+    uint16_t len = strlen(encryptStr);
 
     if(len > pow(2, 64)){
         jpgexit(STR_OUT_OF_LENGTH, __FILE__, __LINE__);
@@ -64,6 +75,7 @@ void encrypt(char *encryptStr, char* filename)
     bitstream->spychars = encryptStr;
     bitstream->current_char_index = 0;
     bitstream->char_count = 7;
+
     data_reader();
 
     int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 06666);

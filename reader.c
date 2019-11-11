@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "jpegerror.h"
 #include "spywriter.h"
+#include "spyreader.h"
 
 extern long filesize;
 extern uint8_t *metafile_content;
@@ -393,6 +394,11 @@ int read_ac(DHTTable *dhttable){
                 }
                 retreat_write_value(code_len & 0x0F);
                 break;
+            case SPY_DECODE:
+                if(bitstream->value == 0 || abs((int)bitstream->value) == 1){
+                    break;
+                }
+                retreat_read_value(code_len & 0x0F);
             default:
                 break;
             }
