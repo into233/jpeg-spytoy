@@ -198,11 +198,11 @@ DQTTable* read_dqt()
         uint8_t c = read_u8();
         uint8_t id = c & 0x0F;
         uint8_t precision = c >> 4;
-        printf("量化表 %c, 精度为 %c\n", id, precision);
+        printf("量化表 %u, 精度为 %u\n", id, precision);
 
         float *table = (float*)malloc(sizeof(float) * 64);
         if(precision == 0){
-            for(int i = 0;i <= 64;++i){
+            for(int i = 0;i < 64;++i){
                 table[i] = (float)read_u8();
             }
             len -= 65;
@@ -217,7 +217,7 @@ DQTTable* read_dqt()
         }
         for(int i = 0;i < 8;++i){
             for(int j = 0;j < 8;++j){
-                printf("%f ", table[i * 8 + j]);
+                printf("%2.0f ", table[i * 8 + j]);
             }
             printf("\n");
         }

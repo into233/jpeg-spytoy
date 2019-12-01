@@ -41,6 +41,7 @@ void read_bit(){
         if(reader_length_index < 0){
             jpeg_assert(bitstream->strlen > 0, "解密的字符必须大于零");
             bitstream->spychars = (uint8_t*)malloc(sizeof(uint8_t) * bitstream->strlen + 1);
+            bitstream->spychars[bitstream->strlen] = '\0';
         }
         return;
     }
