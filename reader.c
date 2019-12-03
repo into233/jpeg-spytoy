@@ -408,13 +408,17 @@ int read_ac(DHTTable *dhttable){
 }
 
 
-float readBlocks(Block* blocks, int width, int height, int w, int h, int count)
+float readBlocks(Block* blocks,int width,  int w, int h, int i, int j)
 {
-    return *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8));
+    int wh = h * 2 + w;
+
+    float ret = *(blocks + (wh) * 8 * 8 + i * 8 + j);
+    return ret;
 }
-void setBlocks(Block* blocks, int width, int height, int w, int h, int count, Block value)
+void setBlocks(Block* blocks, int width, int w, int h, int count, Block value)
 {
-    *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = value;
+    int wh = h * 2 + w;
+    *(blocks + (wh) * 8 * 8 + count) = value;
     // printf("%d ", (int)value);
     // if(count % 8 == 7){
     //     printf("\n");
@@ -449,13 +453,14 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
         // DHTTable *ac_table = jpeg_meta_data->dht_info->DhtTable[table_mapping->ac_ids[id]];
         DHTTable *ac_table = get_dhttable(jpeg_meta_data->dht_info, AC, table_mapping->ac_ids[id]);
 
-
         for(int h = 0;h < height;++h)
         {
             for(int w = 0;w < width;++w)
             {
                 double dc_value = read_dc(dc_table, id);
-                *(blocks + (h * width * 8 * 8)) = dc_value;
+                setBlocks(blocks, width, w, h, 0, dc_value);
+
+                // *(blocks + (h * width * 8 * 8)) = dc_value;
                 // printf("\n%.0f ", dc_value);
                 int count = 1;
                 while(count < 64)
@@ -466,13 +471,13 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
                     case SixteenZeros:
                         for(int slash = 0;slash < 16;++slash){
                             // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
-                            setBlocks(blocks, width, height, w, h, count, 0.0);
+                            setBlocks(blocks, width, w, h, count, 0.0);
                             count +=1;
                         }
                         break;
                     case AllZeros:
                         while(count < 64){
-                            setBlocks(blocks, width, height, w, h, count, 0.0);
+                            setBlocks(blocks, width, w, h, count, 0.0);
                             // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
                             count += 1;
                         }
@@ -480,11 +485,11 @@ MCU* read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
                     case Normal:
                         for(int zeros = 0;zeros < bits->zeros;++zeros)
                         {
-                            setBlocks(blocks, width, height, w, h, count, 0.0);
+                            setBlocks(blocks, width, w, h, count, 0.0);
                             // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = 0.0;
                             count++;
                         }
-                            setBlocks(blocks, width, height, w, h, count, bits->value);
+                            setBlocks(blocks, width, w, h, count, bits->value);
                         // *(blocks + h * width * 8 * 8 + w * 8 * 8 + (count / 8) * 8 + (count % 8)) = bits->value;
                         count += 1;
                         break;
@@ -612,6 +617,7 @@ JpegMetaData* data_reader()
                 jpeg_meta_data->table_mapping = tablemapping;
                 jpeg_meta_data->MCUS_CURSOR = cursor;
                 mcus = read_mcus(jpeg_meta_data);
+                jpeg_meta_data->mcus = mcus;
                 printf("--------------扫描SOS结束 %08x--------------\n", cursor);
                 break;
             case APP0_MARKER:
