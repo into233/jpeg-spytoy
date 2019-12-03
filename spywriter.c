@@ -11,35 +11,42 @@ long spy_cursor;
 enum SPYMODE spymode = SPY_STILL;
 int length_index = 15;
 
-void bit_ctrl_0(uint8_t* pflag, int bit)
+void bit_ctrl_0(uint8_t *pflag, int bit)
 {
     *pflag &= ~(1 << bit);
 }
-void bit_ctrl_1(uint8_t* pflag, int bit)
+void bit_ctrl_1(uint8_t *pflag, int bit)
 {
     *pflag |= (1 << bit);
 }
 
 //这里是从高位到低位写入字符.
-void write_bit(){
-    if(length_index >= 0){
-        if((bitstream->strlen & (1 << (length_index--))) > 0)
+void write_bit()
+{
+    if (length_index >= 0)
+    {
+        if ((bitstream->strlen & (1 << (length_index--))) > 0)
         {
-            bit_ctrl_1(metafile_content + spy_cursor,7 - bitstream->bit_count);
-        }else{
-            bit_ctrl_0(metafile_content + spy_cursor,7 - bitstream->bit_count);
+            bit_ctrl_1(metafile_content + spy_cursor, 7 - bitstream->bit_count);
+        }
+        else
+        {
+            bit_ctrl_0(metafile_content + spy_cursor, 7 - bitstream->bit_count);
         }
         return;
     }
 
-    if(((bitstream->spychars[bitstream->current_char_index]) & (1 << (bitstream->char_count--))) > 0)
+    if (((bitstream->spychars[bitstream->current_char_index]) & (1 << (bitstream->char_count--))) > 0)
     {
-        bit_ctrl_1(metafile_content + spy_cursor,7 - bitstream->bit_count);
-    }else{
-        bit_ctrl_0(metafile_content + spy_cursor,7 - bitstream->bit_count);
+        bit_ctrl_1(metafile_content + spy_cursor, 7 - bitstream->bit_count);
     }
-    
-    if(bitstream->char_count < 0){
+    else
+    {
+        bit_ctrl_0(metafile_content + spy_cursor, 7 - bitstream->bit_count);
+    }
+
+    if (bitstream->char_count < 0)
+    {
         bitstream->current_char_index = bitstream->current_char_index + 1;
         bitstream->char_count = 7;
     }
@@ -54,7 +61,8 @@ void write_bit(){
 // 倒退1bit 直接根据bitstream中的count来计算该写入那个字符的那个位
 void retreat_write_value(uint8_t code_len)
 {
-    if(bitstream->current_char_index >= bitstream->strlen){
+    if (bitstream->current_char_index >= bitstream->strlen)
+    {
         return;
     }
     bitstream->bit_count = bitstream->count == 0 ? 7 : bitstream->count - 1;
@@ -62,12 +70,13 @@ void retreat_write_value(uint8_t code_len)
     write_bit();
 }
 
-void encrypt(char *encryptStr, char* filename)
+void encrypt(char *encryptStr, char *filename)
 {
-    spymode = SPY_ENCODE; 
+    spymode = SPY_ENCODE;
     uint16_t len = strlen(encryptStr);
 
-    if(len > pow(2, 64)){
+    if (len > pow(2, 64))
+    {
         jpgexit(STR_OUT_OF_LENGTH, __FILE__, __LINE__);
     }
     init_Bitstream();
@@ -78,7 +87,7 @@ void encrypt(char *encryptStr, char* filename)
 
     data_reader();
 
-    int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 06666);
+    int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC, 06666);
     write(fd, metafile_content, filesize);
     printf("done!\n");
 }

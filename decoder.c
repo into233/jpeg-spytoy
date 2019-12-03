@@ -73,35 +73,6 @@ void dequantize(MCU *mcu)
     SofInfo *sof_info = jpeg_meta_data->sof_info;
     ComponentInfo **component_info = sof_info->componentInfos;
     DQTTable *dqt_tables = jpeg_meta_data->dqt_table;
-    printf("before dequantize:");
-    for (int id = 0; id < 3; ++id)
-    {
-        ComponentInfo *c_info = component_info[id];
-        uint8_t height = jpeg_meta_data->sof_info->componentInfos[id]->vertical_sampling;
-        uint8_t width = jpeg_meta_data->sof_info->componentInfos[id]->horizontal_sampling;
-        for (int h = 0; h < height; ++h)
-        {
-            for (int w = 0; w < width; ++w)
-            {
-
-                for (int i = 0; i < 8; ++i)
-                {
-                    for (int j = 0; j < 8; ++j)
-                    {
-                        if (id == 1)
-                            printf("%.2f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
-                    }
-                    if (id == 1)
-                        printf("\n");
-                }
-
-                if (id == 1)
-                    printf("\n");
-            }
-        }
-    }
-
-    printf("after dequantize:\n");
 
     for (int id = 0; id < 3; ++id)
     {
@@ -120,15 +91,9 @@ void dequantize(MCU *mcu)
                                   w, h,
                                   (i * 8) + j,
                                   dqt_tables->tables[c_info->quant_table_id][i * 8 + j]);
-                        if (id == 1)
-                            printf("%.2f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
                     }
-                    if (id == 1)
-                        printf("\n");
                 }
             }
-            if (id == 1)
-                printf("\n");
         }
     }
 }
@@ -137,7 +102,6 @@ void dezigzag(MCU *mcu)
 {
     SofInfo *sof_info = jpeg_meta_data->sof_info;
     ComponentInfo **component_info = sof_info->componentInfos;
-    printf("after dezigzag:\n");
 
     for (int id = 0; id < 3; ++id)
     {
@@ -161,31 +125,6 @@ void dezigzag(MCU *mcu)
                                   readBlocks(blocks, width, w, h, ZZ[i][j] / 8, ZZ[i][j] % 8));
                     }
                 }
-            }
-        }
-    }
-    for (int id = 0; id < 3; ++id)
-    {
-        ComponentInfo *c_info = component_info[id];
-        uint8_t height = jpeg_meta_data->sof_info->componentInfos[id]->vertical_sampling;
-        uint8_t width = jpeg_meta_data->sof_info->componentInfos[id]->horizontal_sampling;
-        for (int h = 0; h < height; ++h)
-        {
-            for (int w = 0; w < width; ++w)
-            {
-
-                for (int i = 0; i < 8; ++i)
-                {
-                    for (int j = 0; j < 8; ++j)
-                    {
-                        if (id == 1)
-                            printf("%.2f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
-                    }
-                    if (id == 1)
-                        printf("\n");
-                }
-                if (id == 1)
-                    printf("\n");
             }
         }
     }
@@ -234,7 +173,12 @@ void idct(MCU *mcu)
         }
         memcpy(mcu->blocks[id], blocks, sizeof(Block) * height * width * 8 * 8);
     }
+}
 
+void print_test(MCU *mcu)
+{
+    SofInfo *sof_info = jpeg_meta_data->sof_info;
+    ComponentInfo **component_info = sof_info->componentInfos;
     printf("after idct:\n");
     for (int id = 0; id < 3; ++id)
     {
@@ -250,13 +194,13 @@ void idct(MCU *mcu)
                 {
                     for (int j = 0; j < 8; ++j)
                     {
-                        if (id == 1)
+                        if (id == 0)
                             printf("%.2f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
                     }
-                    if (id == 1)
+                    if (id == 0)
                         printf("\n");
                 }
-                if (id == 1)
+                if (id == 0)
                     printf("\n");
             }
         }
@@ -270,17 +214,16 @@ Image *initImage(int width, int height)
     image->height = height;
     return image;
 }
-void mcuToRgb(Image *image, int w, int h, MCU *mcu)
+void mcuToRgb(Image *image, size_t w, size_t h, MCU *mcu)
 {
     SofInfo *sof_info = jpeg_meta_data->sof_info;
     ComponentInfo **component_info = sof_info->componentInfos;
     uint8_t max_vertical_sampling = sof_info->max_vertical_sampling;
     uint8_t max_horizontal_sampling = sof_info->max_horizontal_sampling;
-    int mcu_height = 8 * max_vertical_sampling;
-    int mcu_width = 8 * max_horizontal_sampling;
-    int image_width = sof_info->width;
-    int image_height = sof_info->height;
-    printf("to Y\n");
+    size_t mcu_height = 8 * max_vertical_sampling;
+    size_t mcu_width = 8 * max_horizontal_sampling;
+    size_t image_width = sof_info->width;
+    size_t image_height = sof_info->height;
 
     for (int i = 0; i < mcu_height; ++i)
     {
@@ -295,15 +238,13 @@ void mcuToRgb(Image *image, int w, int h, MCU *mcu)
                 int vh = (i * component_info[id]->vertical_sampling / max_vertical_sampling);
                 int vw = (j * component_info[id]->horizontal_sampling / max_horizontal_sampling);
                 //TODO what's this?
-                int count = (vh * vw) % 64;
+
                 YCbCr[id] = readBlocks(mcu->blocks[id], width, vw / 8, vh / 8, i, j);
+                printf("id = %d, at %d, %d, i=%d, j=%d, res=%f\n", id, vw / 8, vh / 8, i, j, YCbCr[id]);
             }
             float Y = YCbCr[0];
             float Cb = YCbCr[1];
             float Cr = YCbCr[2];
-            printf("%.2f ", Y);
-            if (j == mcu_width - 1)
-                printf("\n");
 
             uint8_t R = chomp(Y + 1.402 * Cr + 128.0);
             uint8_t G = chomp(Y - 0.34414 * Cb - 0.71414 * Cr + 128.0);
@@ -317,7 +258,6 @@ void mcuToRgb(Image *image, int w, int h, MCU *mcu)
             }
         }
     }
-    printf("\n");
 }
 
 Image *decoder()

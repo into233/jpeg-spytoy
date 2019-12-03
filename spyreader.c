@@ -10,50 +10,58 @@ extern long spy_cursor;
 extern enum SPYMODE spymode;
 int reader_length_index = 15;
 
-void rbit_ctrl_0(uint16_t* pflag, int bit)
+void rbit_ctrl_0(uint16_t *pflag, int bit)
 {
     *pflag &= ~(1 << bit);
 }
-void rbit_ctrl_1(uint16_t* pflag, int bit)
+void rbit_ctrl_1(uint16_t *pflag, int bit)
 {
     *pflag |= (1 << bit);
 }
 
-void cbit_ctrl_0(uint8_t* pflag, int bit)
+void cbit_ctrl_0(uint8_t *pflag, int bit)
 {
     *pflag &= ~(1 << bit);
 }
-void cbit_ctrl_1(uint8_t* pflag, int bit)
+void cbit_ctrl_1(uint8_t *pflag, int bit)
 {
     *pflag |= (1 << bit);
 }
 
 //这里是从高位到低位读入字符.
-void read_bit(){
+void read_bit()
+{
     uint8_t value = *(metafile_content + spy_cursor);
-    if(reader_length_index >= 0){
-        if((value & (1 << (7 - bitstream->bit_count))) > 0)
+    if (reader_length_index >= 0)
+    {
+        if ((value & (1 << (7 - bitstream->bit_count))) > 0)
         {
             rbit_ctrl_1(&(bitstream->strlen), reader_length_index--);
-        }else{
+        }
+        else
+        {
             rbit_ctrl_0(&(bitstream->strlen), reader_length_index--);
         }
-        if(reader_length_index < 0){
+        if (reader_length_index < 0)
+        {
             jpeg_assert(bitstream->strlen > 0, "解密的字符必须大于零");
-            bitstream->spychars = (uint8_t*)malloc(sizeof(uint8_t) * bitstream->strlen + 1);
+            bitstream->spychars = (uint8_t *)malloc(sizeof(uint8_t) * bitstream->strlen + 1);
             bitstream->spychars[bitstream->strlen] = '\0';
         }
         return;
     }
 
-    if((value & (1 << (7 - bitstream->bit_count))) > 0)
+    if ((value & (1 << (7 - bitstream->bit_count))) > 0)
     {
         cbit_ctrl_1(bitstream->spychars + bitstream->current_char_index, bitstream->char_count--);
-    }else{
+    }
+    else
+    {
         cbit_ctrl_0(bitstream->spychars + bitstream->current_char_index, bitstream->char_count--);
     }
-    
-    if(bitstream->char_count < 0){
+
+    if (bitstream->char_count < 0)
+    {
         bitstream->current_char_index = bitstream->current_char_index + 1;
         bitstream->char_count = 7;
     }
@@ -68,7 +76,8 @@ void read_bit(){
 // 倒退1bit 直接根据bitstream中的count来计算该写入那个字符的那个位
 void retreat_read_value(uint8_t code_len)
 {
-    if(bitstream->current_char_index >= bitstream->strlen && reader_length_index < 0){
+    if (bitstream->current_char_index >= bitstream->strlen && reader_length_index < 0)
+    {
         return;
     }
     bitstream->bit_count = bitstream->count == 0 ? 7 : bitstream->count - 1;
@@ -78,8 +87,8 @@ void retreat_read_value(uint8_t code_len)
 
 void decrypt()
 {
-    spymode = SPY_DECODE; 
-    
+    spymode = SPY_DECODE;
+
     init_Bitstream();
     bitstream->current_char_index = 0;
     bitstream->char_count = 7;

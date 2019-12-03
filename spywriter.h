@@ -2,12 +2,13 @@
 #include "jpegerror.h"
 #include <math.h>
 
-enum SPYMODE{
+enum SPYMODE
+{
     SPY_ENCODE,
     SPY_DECODE,
-    SPY_STILL  //does nothing
+    SPY_STILL //does nothing
 };
 
-void encrypt(char *encryptStr, char* filename);
+void encrypt(char *encryptStr, char *filename);
 
 void retreat_write_value(uint8_t code_len);

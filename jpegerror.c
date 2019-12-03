@@ -6,8 +6,10 @@ void jpgexit(int errno, char *file, int line)
     exit(errno);
 }
 
-void jpeg_assert(bool b, char* str){
-    if(!b){
+void jpeg_assert(bool b, char *str)
+{
+    if (!b)
+    {
         printf("assert error:%s\n", str);
         exit(ASSERT_ERROR);
     }
