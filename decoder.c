@@ -230,6 +230,7 @@ Image *initImage(int width, int height)
     image->height = height;
     return image;
 }
+size_t pixel_sum = 0;
 void mcuToRgb(Image *image, size_t w, size_t h, MCU *mcu)
 {
     SofInfo *sof_info = jpeg_meta_data->sof_info;
@@ -253,11 +254,10 @@ void mcuToRgb(Image *image, size_t w, size_t h, MCU *mcu)
 
                 int vh = (i * component_info[id]->vertical_sampling / max_vertical_sampling);
                 int vw = (j * component_info[id]->horizontal_sampling / max_horizontal_sampling);
-                //TODO what's this?
 
-                YCbCr[id] = readBlocks(mcu->blocks[id], width, vw / 8, vh / 8, i, j);
-                // if(id == 0)
-                // printf("id = %d, at %d, %d, i=%d, j=%d, res=%f, w=%zu, h=%zu\n", id, vw / 8, vh / 8, i, j, YCbCr[id], w, h);
+                YCbCr[id] = readBlocks(mcu->blocks[id], width, vw / 8, vh / 8, i % 8, j % 8);
+                // if(id == 1)
+                // printf("id = %d, at %d, %d, mcu_i=%d, mcu_j=%d, res=%f, w=%zu, h=%zu\n", id, vw / 8, vh / 8, i, j, YCbCr[id], w, h);
             }
             float Y = YCbCr[0];
             float Cb = YCbCr[1];
@@ -269,6 +269,8 @@ void mcuToRgb(Image *image, size_t w, size_t h, MCU *mcu)
 
             if (mcu_height * h + i <= image_height && mcu_width * w + j <= image_width)
             {
+                pixel_sum ++;
+                // printf("(y, x): (%zu, %zu), R:%u, G:%u, B:%u\n", (h * mcu_height + i), w * mcu_width + j, R, G, B);
                 (image->pixels + image_width * (h * mcu_width + i) + w * mcu_width + j)->R = R;
                 (image->pixels + image_width * (h * mcu_width + i) + w * mcu_width + j)->G = G;
                 (image->pixels + image_width * (h * mcu_width + i) + w * mcu_width + j)->B = B;
@@ -301,6 +303,7 @@ Image *decoder()
             mcuToRgb(image, j, i, *(mcus->mcu + i * w + j));
         }
     }
+    printf("edit %zu pixels", pixel_sum);
     return image;
 }
 
@@ -311,7 +314,7 @@ void to_ppm(Image *image, char *filename)
     sprintf(str, "P6\n%d %d\n255\n", image->width, image->height);
 
     write(fd, str, strlen(str));
-    write(fd, image->pixels, image->width * image->height);
+    write(fd, image->pixels, sizeof(Pixel) * image->width * image->height);
     // for(int row = 0;row < image->height;++row)
     // {
     //     for(int col = 0;col < image->width;++col)
