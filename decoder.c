@@ -15,7 +15,7 @@ float cc(uint8_t i, uint8_t j)
     }
     else if (i == 0 || j == 0)
     {
-        return 1.0 / sqrt(2.0);
+        return 1.0 / sqrt((float)2.0);
     }
     else
     {
@@ -96,6 +96,8 @@ void dequantize(MCU *mcu)
             }
         }
     }
+    print_test(mcu, "after dequantize");
+
 }
 
 void dezigzag(MCU *mcu)
@@ -128,11 +130,17 @@ void dezigzag(MCU *mcu)
             }
         }
     }
+    print_test(mcu, "after dsigzag");
+
 }
 void idct(MCU *mcu)
 {
     SofInfo *sof_info = jpeg_meta_data->sof_info;
     ComponentInfo **component_info = sof_info->componentInfos;
+    float i_cos;
+    float j_cos;
+    float aft;
+    float tmp = 0;
 
     for (int id = 0; id < 3; ++id)
     {
@@ -150,33 +158,41 @@ void idct(MCU *mcu)
                 {
                     for (int j = 0; j < 8; ++j)
                     {
+                        tmp = 0;
                         for (int x = 0; x < 8; ++x)
                         {
                             for (int y = 0; y < 8; ++y)
                             {
-                                float i_cos = cos((2 * i + 1.0) * PI / 16.0 * x);
-                                float j_cos = cos((2 * i + 1.0) * PI / 16.0 * y);
-                                float aft = readBlocks(mcu->blocks[id], width, w, h, x, y) * i_cos * j_cos * cc(x, y);
+                                i_cos = cos((float)(2 * i + 1.0) * PI / 16.0 * x);
+                                j_cos = cos((float)(2 * j + 1.0) * PI / 16.0 * y);
+                                aft = cc(x, y) * readBlocks(mcu->blocks[id], width, w, h, x, y) * i_cos * j_cos;
                                 plusBlocks(blocks,
                                            w, h,
                                            (i * 8) + j,
                                            aft);
+                                tmp += aft;
                             }
                         }
                         setBlocks(blocks, width,
                                   w, h,
                                   (i * 8) + j,
-                                  readBlocks(blocks, width, w, h, i, j) / 4);
+                                  readBlocks(blocks, width, w, h, i, j) / 4.0);
+                        // printf("tmp = %.5f, act = %.5f\n", tmp / 4, readBlocks(blocks, width, w, h, i, j));
                     }
                 }
             }
         }
         memcpy(mcu->blocks[id], blocks, sizeof(Block) * height * width * 8 * 8);
+        free(blocks);
     }
+    print_test(mcu, "after idct");
 }
 
-void print_test(MCU *mcu)
+void print_test(MCU *mcu, char* msg)
 {
+    return;
+    printf("%s\n", msg);
+    printf("h = %d, w = %d\n", mcu->h, mcu->w);
     SofInfo *sof_info = jpeg_meta_data->sof_info;
     ComponentInfo **component_info = sof_info->componentInfos;
     printf("after idct:\n");
@@ -189,18 +205,18 @@ void print_test(MCU *mcu)
         {
             for (int w = 0; w < width; ++w)
             {
-
+                printf("%s 颜色分量, %d, %d\n", component_name(id + 1), h, w);
                 for (int i = 0; i < 8; ++i)
                 {
                     for (int j = 0; j < 8; ++j)
                     {
-                        if (id == 0)
-                            printf("%.2f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
+                        // if (id == 0)
+                            printf("%.6f ", readBlocks(mcu->blocks[id], width, w, h, i, j));
                     }
-                    if (id == 0)
+                    // if (id == 0)
                         printf("\n");
                 }
-                if (id == 0)
+                // if (id == 0)
                     printf("\n");
             }
         }
@@ -240,7 +256,8 @@ void mcuToRgb(Image *image, size_t w, size_t h, MCU *mcu)
                 //TODO what's this?
 
                 YCbCr[id] = readBlocks(mcu->blocks[id], width, vw / 8, vh / 8, i, j);
-                printf("id = %d, at %d, %d, i=%d, j=%d, res=%f\n", id, vw / 8, vh / 8, i, j, YCbCr[id]);
+                // if(id == 0)
+                // printf("id = %d, at %d, %d, i=%d, j=%d, res=%f, w=%zu, h=%zu\n", id, vw / 8, vh / 8, i, j, YCbCr[id], w, h);
             }
             float Y = YCbCr[0];
             float Cb = YCbCr[1];

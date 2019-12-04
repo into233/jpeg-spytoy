@@ -14,3 +14,5 @@ typedef struct Image
     int width;
     struct Pixel *pixels;
 } Image;
+
+void print_test(MCU *mcu, char* msg);

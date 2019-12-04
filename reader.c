@@ -483,13 +483,15 @@ DHTTable *get_dhttable(DHTInfo *dhtinfo, uint8_t AC_DC, int id)
     return NULL;
 }
 
-MCU *read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data)
+MCU *read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data, int w, int h)
 {
     // ComponentInfo *component_info = jpeg_meta_data->sof_info->componentInfos[0];
     TableMapping *table_mapping = jpeg_meta_data->table_mapping;
 
     //MCU
     MCU *mcu = (MCU *)malloc(sizeof(MCU));
+    mcu->w = w;
+    mcu->h = h;
     mcu->blocks = (Block **)malloc(sizeof(Block **) * 3);
 
     for (int id = 0; id < 3; ++id)
@@ -579,7 +581,7 @@ MCUS *read_mcus(JpegMetaData *jpegdata)
     {
         for (int j = 0; j < w; ++j)
         {
-            *(mcus->mcu + i * w + j) = read_mcu(bitstream, jpegdata);
+            *(mcus->mcu + i * w + j) = read_mcu(bitstream, jpegdata, j, i);
         }
     }
     return mcus;

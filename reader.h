@@ -135,7 +135,8 @@ typedef float Block;
 typedef struct _MCU
 {
     Block **blocks;
-
+    int w;
+    int h;
 } MCU;
 
 typedef struct
@@ -160,7 +161,7 @@ JpegMetaData *data_reader();
 TableMapping *read_sos();
 char *component_name(uint8_t id);
 MCUS *read_mcus(JpegMetaData *jpegdata);
-MCU *read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data);
+MCU *read_mcu(BitStream *bits, JpegMetaData *jpeg_meta_data, int w, int h);
 void setBlocks(Block *blocks, int width, int w, int h, int count, Block value);
 float readBlocks(Block *blocks, int width, int w, int h, int i, int j);
 int read_ac(DHTTable *dhttable);
