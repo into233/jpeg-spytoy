@@ -332,12 +332,12 @@ void to_ppm(Image *image, char *filename)
 int main()
 {
     // read_jpgfile("./kaola.jpg");
-    read_jpgfile("./rainbow.jpg");
+    read_jpgfile("./img/kaola.jpg");
     // marker_detector();
     jpeg_meta_data = data_reader();
     // printf("please enter the code that you want to encrypt")
     // encrypt("abcdef", "kaola_out.jpg");
-    to_ppm(decoder(), "rainbow_ppm.ppm");
+    to_ppm(decoder(), "kaola_ppm.ppm");
 
     // decrypt();
 

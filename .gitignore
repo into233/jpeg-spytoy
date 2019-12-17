@@ -5,3 +5,4 @@ test*
 main
 *.ppm
 *.jpg
+!img/*.jpg
