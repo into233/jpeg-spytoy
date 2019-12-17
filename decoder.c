@@ -166,13 +166,14 @@ void idct(MCU *mcu)
                                 i_cos = cos((float)(2 * i + 1.0) * PI / 16.0 * x);
                                 j_cos = cos((float)(2 * j + 1.0) * PI / 16.0 * y);
                                 aft = cc(x, y) * readBlocks(mcu->blocks[id], width, w, h, x, y) * i_cos * j_cos;
-                                plusBlocks(blocks,
-                                           w, h,
-                                           (i * 8) + j,
-                                           aft);
+                                
                                 tmp += aft;
                             }
                         }
+                        plusBlocks(blocks,
+                                           w, h,
+                                           (i * 8) + j,
+                                           tmp);
                         setBlocks(blocks, width,
                                   w, h,
                                   (i * 8) + j,
@@ -331,12 +332,12 @@ void to_ppm(Image *image, char *filename)
 int main()
 {
     // read_jpgfile("./kaola.jpg");
-    read_jpgfile("./kaola_out.jpg");
+    read_jpgfile("./rainbow.jpg");
     // marker_detector();
     jpeg_meta_data = data_reader();
     // printf("please enter the code that you want to encrypt")
     // encrypt("abcdef", "kaola_out.jpg");
-    to_ppm(decoder(), "kaolao_ppm.ppm");
+    to_ppm(decoder(), "rainbow_ppm.ppm");
 
     // decrypt();
 
